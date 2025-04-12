@@ -7,6 +7,8 @@ class Client():
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_thread_lock = threading.Lock()
 
+        self.run()
+
     def send_message(self):
         try:
             while True:
@@ -32,15 +34,15 @@ class Client():
             print("closed receive_message thread")
             
     def run(self):
-        receive_message_thread = threading.Thread(target=self.receive_message, daemon=True)
-        send_message_thread = threading.Thread(target=self.send_message)
+        receive_message_thread = threading.Thread(target=self.receive_message)
+        send_message_thread = threading.Thread(target=self.send_message, daemon=True)
 
         try:
             self.socket.connect(("127.0.0.1", 56333))
             receive_message_thread.start()
             send_message_thread.start()
 
-            send_message_thread.join()
+            receive_message_thread.join()
 
         finally:
             print("Chat closed.")
@@ -48,4 +50,3 @@ class Client():
 
 if __name__ == "__main__":
     c = Client()
-    c.run()
