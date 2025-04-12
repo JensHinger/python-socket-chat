@@ -8,22 +8,26 @@ class Client():
         self.client_thread_lock = threading.Lock()
 
     def send_message(self):
-        while True:
-            with self.client_thread_lock:
+        try:
+            while True:
                 message = input("Type message: ")
-            
-            if message == "/c":
-                self.socket.close()
-                break
+                
+                if message == "/c":
+                    self.socket.close()
+                    break
 
-            self.socket.send(message.encode())
+                self.socket.send(message.encode())
+        except ConnectionResetError as e:
+            print(e)
     
     def receive_message(self):
         try:
             while True:
-                # Message should contain who sent it
                 message = self.socket.recv(1024)
-                print(f"\n{message.decode()}")
+                if message:
+                    print(f"{message.decode()} \n")
+        except ConnectionResetError as e:
+            print(e)
         finally:
             print("closed receive_message thread")
             

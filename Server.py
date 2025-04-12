@@ -5,33 +5,52 @@ class Server():
 
     def __init__(self, address: tuple[str, int] = ("127.0.0.1", 56333)):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.settimeout(5)
         self.address = address
 
+        self.is_alive = True
+
+        self.connection_thread = None
         self.connections = []
 
         try:
-            self.start()
+            self.start_server()
+            self.connection_thread = threading.Thread(target=self.connect_new_user)
+            self.connection_thread.start()
+            
+            print("Press any button to close")
+            input("close:")
+            raise KeyboardInterrupt
 
-            while True:
-                print("accepting new connections")
-                conn, addr = self.server_socket.accept()
-
-                self.connections.append((conn, addr))
-
-                thread = threading.Thread(target=self.handle_user_connection, daemon=True, args=[conn, addr])
-                thread.start()
         except KeyboardInterrupt:
-            print("Shutting down server...")
+            print("Manually shutting down server...")
         finally:
-            self.stop()
+            self.is_alive = False
+            self.stop_server()
 
-    def start(self):
+    def start_server(self):
         self.server_socket.bind(self.address)
         self.server_socket.listen()
         print(f"Listening on {self.address}")
 
-    def stop(self):
+    def stop_server(self):
+        self.connection_thread.join()
+
         self.server_socket.close()
+        print("Server closed")
+
+    def connect_new_user(self):
+        while self.is_alive:
+            try:
+                # .accept() throws error on timeout -> code below is not executed
+                conn, addr = self.server_socket.accept()
+            
+                self.connections.append((conn, addr))
+
+                thread = threading.Thread(target=self.handle_user_connection, daemon=True, args=[conn, addr])
+                thread.start()
+            except socket.timeout:
+                continue
 
     def handle_user_connection(self, conn, addr):
         print(f"User connected: {addr}")
@@ -43,7 +62,9 @@ class Server():
                     self.broadcast_message(message)
                     print("connections: ", self.connections)
                 else:
-                    print("ELSE BLOCK I GUESS")
+                    # No data being sent -> close connection
+                    conn.close()
+                    break
         except ConnectionResetError as e:
             print(e)
         finally:
